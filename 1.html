@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python GUI Builder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: #2e2e2e;
+            color: #f0f0f0;
+        }
+
+        #container {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: 1fr;
+            gap: 10px;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #widgetList,
+        #codeContainer {
+            background-color: #1e1e1e;
+            border: 1px solid #444;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+        }
+
+        #widgetList {
+            grid-column: 3;
+        }
+
+        #canvasContainer {
+            grid-column: 2;
+            position: relative;
+            border: 2px solid #444;
+            background-color: #3e3e3e;
+            overflow: hidden;
+        }
+
+        #drawingCanvas {
+            border: 1px solid #666;
+            width: 100%;
+            height: 100%;
+        }
+
+        .widget {
+            margin: 10px 0;
+            padding: 10px;
+            background: #4e4e4e;
+            cursor: grab;
+            text-align: center;
+            border-radius: 4px;
+            color: #f0f0f0;
+        }
+
+        .widget.dragging {
+            opacity: 0.5;
+        }
+
+        .widget-in-canvas {
+            position: absolute;
+            width: 100px;
+            height: 30px;
+            background-color: #4e4e4e;
+            border: 1px solid #666;
+            text-align: center;
+            line-height: 30px;
+            cursor: move;
+            border-radius: 4px;
+            color: #f0f0f0;
+        }
+
+        .widget.combobox {
+            background-color: #4e4e4e;
+            color: #f0f0f0;
+        }
+
+        #codeContainer {
+            grid-column: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100%;
+            margin-top: 10px;
+            box-sizing: border-box;
+            background-color: #1e1e1e;
+            color: #f0f0f0;
+            border: 1px solid #444;
+            resize: none;
+        }
+
+        #editForm {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #1e1e1e;
+            border: 1px solid #444;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        #editForm label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        #editForm input {
+            width: calc(100% - 20px);
+            margin-bottom: 10px;
+            padding: 5px;
+            background-color: #333;
+            color: #f0f0f0;
+            border: 1px solid #444;
+        }
+
+        #editForm button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            background-color: #444;
+            color: #f0f0f0;
+        }
+
+        #editForm button:hover {
+            background-color: #555;
+        }
+
+        #editForm input {
+            width: calc(100% - 20px);
+            margin-bottom: 10px;
+            padding: 5px;
+            background-color: #333;
+            color: #f0f0f0;
+            border: 1px solid #444;
+        }
+
+        #editForm label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        #editForm textarea {
+            width: calc(100% - 20px);
+            margin-bottom: 10px;
+            padding: 5px;
+            background-color: #333;
+            color: #f0f0f0;
+            border: 1px solid #444;
+            resize: vertical;
+        }
+
+        #editForm button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            background-color: #444;
+            color: #f0f0f0;
+        }
+
+        #comboboxOptionsSection {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id="codeContainer">
+            <button id="generateCode">Export</button>
+            <textarea id="visible_code"></textarea>
+        </div>
+        <div id="canvasContainer">
+            <canvas id="drawingCanvas"></canvas>
+            <div id="editForm">
+                <label for="widgetText">Edit Text:</label>
+                <input type="text" id="widgetText" />
+                <div id="comboboxOptionsSection" style="display: none;">
+                    <label for="widgetOptions">Options (one per line):</label>
+                    <textarea id="widgetOptions" rows="5"></textarea>
+                </div>
+                <button id="saveChanges">Save</button>
+                <button id="deleteWidget">Delete</button>
+            </div>
+        </div>
+        <div id="widgetList">
+            <div draggable="true" data-type="button" class="widget">Button</div>
+            <div draggable="true" data-type="label" class="widget">Label</div>
+            <div draggable="true" data-type="entry" class="widget">Entry</div>
+            <div draggable="true" data-type="combobox" class="widget">Combobox</div>
+            <div draggable="true" data-type="checkbox" class="widget">Checkbox</div>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        const widgetList = document.getElementById('widgetList');
+        const generateCodeButton = document.getElementById('generateCode');
+        const visibleCode = document.getElementById('visible_code');
+        const editForm = document.getElementById('editForm');
+        const widgetTextInput = document.getElementById('widgetText');
+        const widgetOptionsInput = document.getElementById('widgetOptions');
+        const saveChangesButton = document.getElementById('saveChanges');
+        const deleteWidgetButton = document.getElementById('deleteWidget');
+        const comboboxOptionsSection = document.getElementById('comboboxOptionsSection');
+        const WIDGET_WIDTH = 100;
+        const WIDGET_HEIGHT = 30;
+        let widgets = [];
+        let draggedWidget = null;
+        let selectedWidget = null;
+
+        function calculatePosition(widget) {
+            return {
+                x: widget.column * WIDGET_WIDTH,
+                y: widget.row * WIDGET_HEIGHT
+            };
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        widgetList.addEventListener('dragstart', (event) => {
+            draggedWidget = event.target;
+            event.dataTransfer.setData('text/plain', event.target.dataset.type);
+            event.target.classList.add('dragging');
+        });
+
+        widgetList.addEventListener('dragend', (event) => {
+            event.target.classList.remove('dragging');
+            draggedWidget = null;
+        });
+
+        canvas.addEventListener('dragover', (event) => {
+            event.preventDefault();
+        });
+
+        canvas.addEventListener('drop', (event) => {
+            event.preventDefault();
+            const type = event.dataTransfer.getData('text/plain');
+            const column = Math.floor(event.offsetX / WIDGET_WIDTH);
+            const row = Math.floor(event.offsetY / WIDGET_HEIGHT);
+
+            widgets.push({ type, column, row, text: type.charAt(0).toUpperCase() + type.slice(1), options: [] });
+            drawWidgets();
+        });
+
+        canvas.addEventListener('mousedown', (event) => {
+            const column = Math.floor(event.offsetX / WIDGET_WIDTH);
+            const row = Math.floor(event.offsetY / WIDGET_HEIGHT);
+
+            selectedWidget = widgets.find(widget =>
+                column === widget.column &&
+                row === widget.row
+            );
+
+            if (selectedWidget) {
+                const offsetX = event.offsetX - (selectedWidget.column * WIDGET_WIDTH);
+                const offsetY = event.offsetY - (selectedWidget.row * WIDGET_HEIGHT);
+
+                const onMouseMove = (event) => {
+                    selectedWidget.column = Math.floor((event.offsetX - offsetX) / WIDGET_WIDTH);
+                    selectedWidget.row = Math.floor((event.offsetY - offsetY) / WIDGET_HEIGHT);
+                    drawWidgets();
+                };
+
+                const onMouseUp = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+
+                // Show edit form
+                if (selectedWidget) {
+                    widgetTextInput.value = selectedWidget.text;
+                    widgetOptionsInput.value = selectedWidget.options.join('\n');
+
+                    // Show or hide combobox options section
+                    if (selectedWidget.type === 'combobox') {
+                        comboboxOptionsSection.style.display = 'block';
+                    } else {
+                        comboboxOptionsSection.style.display = 'none';
+                    }
+
+                    editForm.style.display = 'block';
+                }
+            }
+        });
+
+        saveChangesButton.addEventListener('click', () => {
+            if (selectedWidget) {
+                selectedWidget.text = widgetTextInput.value;
+                selectedWidget.options = widgetOptionsInput.value.split('\n').map(option => option.trim()).filter(option => option);
+                drawWidgets();
+            }
+            editForm.style.display = 'none';
+        });
+
+        deleteWidgetButton.addEventListener('click', () => {
+            if (selectedWidget) {
+                widgets = widgets.filter(widget => widget !== selectedWidget);
+                selectedWidget = null;
+                drawWidgets();
+            }
+            editForm.style.display = 'none';
+        });
+
+        function drawWidgets() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = '16px Arial';
+            widgets.forEach(widget => {
+                const { x, y } = calculatePosition(widget);
+                ctx.fillStyle = '#4e4e4e';
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 1;
+                ctx.fillRect(x, y, WIDGET_WIDTH, WIDGET_HEIGHT);
+                ctx.strokeRect(x, y, WIDGET_WIDTH, WIDGET_HEIGHT);
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillText(widget.text, x + 10, y + 20);
+            });
+        }
+
+        generateCodeButton.addEventListener('click', () => {
+            let code = "import PyGUIBuilder\n\napp = PyGUIBuilder.createWindow('My First App', 'icon.ico', 400, 400)\n";
+            widgets.forEach(widget => {
+                if (widget.type === 'button') {
+                    code += `\ndef callback():\n  pass\nPyGUIBuilder.createButton(app, '${widget.text}', callback, ${widget.row}, ${widget.column})\n`;
+                } else if (widget.type === 'label') {
+                    code += `\nPyGUIBuilder.createLabel(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
+                } else if (widget.type === 'entry') {
+                    code += `\nPyGUIBuilder.createEntry(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
+                } else if (widget.type === 'combobox') {
+                    code += `\nvalues = ${JSON.stringify(widget.options)}\nPyGUIBuilder.createComboBox(app, values, ${widget.row}, ${widget.column})\n`;
+                } else if (widget.type === 'checkbox') {
+                    code += `\nPyGUIBuilder.createCheckbox(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
+                }
+            });
+            code += "\nPyGUIBuilder.run()";
+            visibleCode.value = code;
+        });
+
+    </script>
+</body>
+
+</html>
