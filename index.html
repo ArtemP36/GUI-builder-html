@@ -186,6 +186,10 @@
 <body>
     <div id="container">
         <div id="codeContainer">
+            <select id="select">
+                <option value="PyGUIBuilder">PyGUIBuilder</option>
+                <option value="tkinter">Tkinter</option>
+            </select>
             <button id="generateCode">Export</button>
             <textarea id="visible_code"></textarea>
         </div>
@@ -346,23 +350,46 @@
         }
 
         generateCodeButton.addEventListener('click', () => {
-            let code = "import PyGUIBuilder\n\napp = PyGUIBuilder.createWindow('My First App', 'icon.ico', 400, 400)\n";
-            widgets.forEach(widget => {
-                if (widget.type === 'button') {
-                    code += `\ndef callback():\n  pass\nPyGUIBuilder.createButton(app, '${widget.text}', callback, ${widget.row}, ${widget.column})\n`;
-                } else if (widget.type === 'label') {
-                    code += `\nPyGUIBuilder.createLabel(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
-                } else if (widget.type === 'entry') {
-                    code += `\nPyGUIBuilder.createEntry(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
-                } else if (widget.type === 'combobox') {
-                    code += `\nvalues = ${JSON.stringify(widget.options)}\nPyGUIBuilder.createComboBox(app, values, ${widget.row}, ${widget.column})\n`;
-                } else if (widget.type === 'checkbox') {
-                    code += `\nPyGUIBuilder.createCheckbox(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
-                }
-            });
-            code += "\nPyGUIBuilder.run()";
+            const selectedLibrary = document.getElementById('select').value;
+            let code = '';
+
+            if (selectedLibrary === 'tkinter') {
+                code += "import tkinter as tk\n\nroot = tk.Tk()\n";
+                widgets.forEach((widget) => {
+                    if (widget.type === 'button') {
+                        code += `\ntk.Button(root, text='${widget.text}', command=lambda: None).grid(row=${widget.row}, column=${widget.column})\n`;
+                    } else if (widget.type === 'label') {
+                        code += `\ntk.Label(root, text='${widget.text}').grid(row=${widget.row}, column=${widget.column})\n`;
+                    } else if (widget.type === 'entry') {
+                        code += `\ntk.Entry(root).grid(row=${widget.row}, column=${widget.column})\n`;
+                    } else if (widget.type === 'combobox') {
+                        code += `\nvar = tk.StringVar(value='${widget.options[0]}')\n`;
+                        code += `\ntk.OptionMenu(root, var, *${widget.options.map((option) => `'${option}'`).join(', ')}).grid(row=${widget.row}, column=${widget.column})\n`;
+                    } else if (widget.type === 'checkbox') {
+                        code += `\ntk.Checkbutton(root, text='${widget.text}').grid(row=${widget.row}, column=${widget.column})\n`;
+                    }
+                });
+                code += "\nroot.mainloop()";
+            } else if (selectedLibrary === 'PyGUIBuilder') {
+                code += "import PyGUIBuilder\n\napp = PyGUIBuilder.createWindow('My First App', 'icon.ico', 400, 400)\n";
+                widgets.forEach((widget) => {
+                    if (widget.type === 'button') {
+                        code += `\ndef callback():\n  pass\nPyGUIBuilder.createButton(app, '${widget.text}', callback, ${widget.row}, ${widget.column})\n`;
+                    } else if (widget.type === 'label') {
+                        code += `\nPyGUIBuilder.createLabel(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
+                    } else if (widget.type === 'entry') {
+                        code += `\nPyGUIBuilder.createEntry(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
+                    } else if (widget.type === 'combobox') {
+                        code += `\nvalues = ${JSON.stringify(widget.options)}\nPyGUIBuilder.createComboBox(app, values, ${widget.row}, ${widget.column})\n`;
+                    } else if (widget.type === 'checkbox') {
+                        code += `\nPyGUIBuilder.createCheckbox(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
+                    }
+                });
+                code += "\nPyGUIBuilder.run()";
+            }
             visibleCode.value = code;
         });
+
 
     </script>
 </body>
