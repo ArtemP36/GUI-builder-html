@@ -354,7 +354,7 @@
             let code = '';
 
             if (selectedLibrary === 'tkinter') {
-                code += "import tkinter as tk\n\nroot = tk.Tk()\n";
+                code += "import tkinter as tk\n\nroot = tk.Tk()\n\nv = tk.IntVar()\n";
                 widgets.forEach((widget) => {
                     if (widget.type === 'button') {
                         code += `\ntk.Button(root, text='${widget.text}', command=lambda: None).grid(row=${widget.row}, column=${widget.column})\n`;
@@ -367,6 +367,8 @@
                         code += `\ntk.OptionMenu(root, var, *${widget.options.map((option) => `'${option}'`).join(', ')}).grid(row=${widget.row}, column=${widget.column})\n`;
                     } else if (widget.type === 'checkbox') {
                         code += `\ntk.Checkbutton(root, text='${widget.text}').grid(row=${widget.row}, column=${widget.column})\n`;
+                    } else if (widget.type === 'radiobutton') {
+                        code += `\ntk.Radiobutton(root, text='${widget.text}', variable=v, value=${widget.row}).grid(row=${widget.row}, column=${widget.column})\n`;
                     }
                 });
                 code += "\nroot.mainloop()";
@@ -383,6 +385,8 @@
                         code += `\nvalues = ${JSON.stringify(widget.options)}\nPyGUIBuilder.createComboBox(app, values, ${widget.row}, ${widget.column})\n`;
                     } else if (widget.type === 'checkbox') {
                         code += `\nPyGUIBuilder.createCheckbox(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
+                    } else if (widget.type === 'radiobutton') {
+                        code += `\nPyGUIBuilder.createRadioButton(app, '${widget.text}', ${widget.row}, ${widget.column})\n`;
                     }
                 });
                 code += "\nPyGUIBuilder.run()";
